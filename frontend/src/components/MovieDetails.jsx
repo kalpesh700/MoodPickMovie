@@ -10,7 +10,7 @@ function MovieDetails() {
   useEffect(() => {
     const fetchMovies = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/movies/${mood}`);
+        const response = await fetch(`https://moodpickmovie-backend.onrender.com/movies/${mood}`);
         const data = await response.json();
         setMovies(data); // Store fetched movies in state
       } catch (error) {
