@@ -13,6 +13,7 @@ function MovieDetails() {
         const response = await fetch(`http://localhost:5000/movies/${mood}`);
         const data = await response.json();
         setMovies(data); // Store fetched movies in state
+        setCurrentIndex(Math.floor(Math.random() * data.length)); // Start with a random movie
       } catch (error) {
         console.error('Error fetching movie details:', error);
       }
@@ -22,7 +23,13 @@ function MovieDetails() {
   }, [mood]); // Dependency on mood to fetch again when mood changes
 
   const handleSkip = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length); // Loop back to start
+    if (movies.length > 1) {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * movies.length);
+      } while (newIndex === currentIndex); // Ensure the new index is different from the current one
+      setCurrentIndex(newIndex);
+    }
   };
 
   const handleWatchTrailer = (movieTitle) => {
