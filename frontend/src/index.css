@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* Global font for the entire site */
+body {
+    font-family: 'Sour Gummy', sans-serif; /* Default font */
+  }
+  
+  /* Specific styles for headings */
+  h1, h2, h3 {
+    font-family: 'Tiro Devanagari Marathi', serif;
+  }
+  
