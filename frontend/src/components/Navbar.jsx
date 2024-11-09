@@ -19,12 +19,6 @@ function Navbar() {
           <li>
             <Link to="/" className="text-white hover:bg-gray-700 rounded px-2 py-1">Home</Link>
           </li>
-          <li>
-            <Link to="/hindi" className="text-white hover:bg-gray-700 rounded px-2 py-1">hindi</Link>
-          </li>
-          <li>
-            <Link to="/about" className="text-white hover:bg-gray-700 rounded px-2 py-1">About</Link>
-          </li>
         </ul>
       </div>
     </div>
