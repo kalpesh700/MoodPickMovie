@@ -13,7 +13,7 @@ function MovieDetails() {
       setLoading(true);  // Start loading
       setError(null);     // Reset error
       try {
-        const response = await fetch(`http://localhost:5000/movies/${mood}/${language}`);
+        const response = await fetch(`https://moodpickmovie-backend.onrender.com/movies/${mood}/${language}`);
         const data = await response.json();
         setMovies(data);
         setCurrentIndex(Math.floor(Math.random() * data.length));
