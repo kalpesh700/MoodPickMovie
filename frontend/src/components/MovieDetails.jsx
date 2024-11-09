@@ -2,90 +2,108 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 function MovieDetails() {
-  const { mood } = useParams(); // Get the mood from the URL
-  const [movies, setMovies] = useState([]); // Store the movie list
+  const { mood, language = 'en' } = useParams(); // Capture both mood and language from the URL
+  const [movies, setMovies] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fetch movies when the component mounts or mood changes
   useEffect(() => {
     const fetchMovies = async () => {
+      setLoading(true);  // Start loading
+      setError(null);     // Reset error
       try {
-        const response = await fetch(`https://moodpickmovie-backend.onrender.com/movies/${mood}`);
+        const response = await fetch(`http://localhost:5000/movies/${mood}/${language}`);
         const data = await response.json();
-        setMovies(data); // Store fetched movies in state
-        setCurrentIndex(Math.floor(Math.random() * data.length)); // Start with a random movie
+        setMovies(data);
+        setCurrentIndex(Math.floor(Math.random() * data.length));
       } catch (error) {
-        console.error('Error fetching movie details:', error);
+        console.error("Error fetching movie details:", error);
+        setError('Failed to load movies. Please try again later.');
+      } finally {
+        setLoading(false);  // Stop loading
       }
     };
 
     fetchMovies();
-  }, [mood]); // Dependency on mood to fetch again when mood changes
+  }, [mood, language]);
 
   const handleSkip = () => {
     if (movies.length > 1) {
       let newIndex;
       do {
         newIndex = Math.floor(Math.random() * movies.length);
-      } while (newIndex === currentIndex); // Ensure the new index is different from the current one
+      } while (newIndex === currentIndex);
       setCurrentIndex(newIndex);
     }
   };
 
   const handleWatchTrailer = (movieTitle) => {
-    // Redirect to YouTube search results for the movie trailer
     window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(movieTitle)}+trailer`, '_blank');
   };
 
-  const currentMovie = movies[currentIndex]; // Get the current movie
+  const currentMovie = movies[currentIndex] || {};
 
-  return (
-    // Check if movies are still being fetched
-    !movies.length ? (
+  const formatGenres = (genres) => {
+    if (!genres || genres.length === 0) return 'Genre not available';
+    return genres.join(', '); // Join genre names if available
+  };
+
+  // If loading, show the spinner
+  if (loading) {
+    return (
       <div className="flex justify-center items-center min-h-screen">
-        {/* Loading animation while movies are being fetched */}
         <span className="loading loading-ring loading-md"></span>
       </div>
-    ) : (
-      <div className="flex justify-center items-center min-h-screen relative px-4">
-        {/* Background image with blur effect */}
-        <div
-          className="absolute inset-0 bg-cover bg-center filter blur-sm"
-          style={{
-            backgroundImage: `url(https://image.tmdb.org/t/p/w500/${currentMovie.poster_path})`,
-          }}
-        ></div>
+    );
+  }
 
-        <div className="card bg-base-100 w-full sm:w-[80%] md:w-[70%] lg:w-[50%] xl:w-[40%] max-w-md shadow-xl relative z-10 p-4">
-          <figure>
-            {/* Display movie poster */}
-            <img
-              src={`https://image.tmdb.org/t/p/w500/${currentMovie.poster_path}`}
-              alt={currentMovie.title}
-              className="w-full h-auto rounded-lg"
-            />
-          </figure>
-          <div className="card-body">
-            <h2 className="card-title text-center">{currentMovie.title}</h2>
-            <p><strong>Overview:</strong> {currentMovie.overview}</p>
-            <p><strong>Release Date:</strong> {currentMovie.release_date}</p>
-            <p><strong>Rating:</strong> {currentMovie.vote_average}</p>
-            <p><strong>Genre:</strong> {currentMovie.genre || 'Romance, Comedy'}</p> {/* Added genre */}
-            <p><strong>Duration:</strong> {currentMovie.runtime || '2h 40m'}</p> {/* Added duration */}
-            
-            <div className="card-actions justify-center space-x-4">
-              {/* Button to watch trailer by redirecting to YouTube search */}
-              <button onClick={() => handleWatchTrailer(currentMovie.title)} className="btn btn-primary">
-                Watch Trailer
-              </button>
-              <button onClick={handleSkip} className="btn btn-secondary">
-                Next Movie
-              </button>
-            </div>
+  // If there's an error
+  if (error) {
+    return <div className="error-message">{error}</div>;
+  }
+
+  // If there are no movies
+  if (!movies.length) {
+    return <div>No movies available for this mood</div>;
+  }
+
+  return (
+    <div className="flex justify-center items-center min-h-screen relative px-4">
+      <div
+        className="absolute inset-0 bg-cover bg-center filter blur-sm"
+        style={{
+          backgroundImage: `url(https://image.tmdb.org/t/p/w500/${currentMovie.poster_path})`,
+        }}
+      ></div>
+
+      <div className="card bg-base-100 w-full sm:w-[80%] md:w-[70%] lg:w-[50%] xl:w-[40%] max-w-md shadow-xl relative z-10 p-4">
+        <figure>
+          <img
+            src={`https://image.tmdb.org/t/p/w500/${currentMovie.poster_path}`}
+            alt={currentMovie.title}
+            className="w-full h-auto rounded-lg"
+          />
+        </figure>
+        <div className="card-body">
+          <h2 className="card-title text-center">{currentMovie.title}</h2>
+          <p><strong>Overview:</strong> {currentMovie.overview}</p>
+          <p><strong>Release Year:</strong> {new Date(currentMovie.release_date).getFullYear()}</p>
+          <p><strong>Rating:</strong> ⭐ {currentMovie.vote_average.toFixed(1)}/10</p>
+          <p><strong>Genre:</strong> {formatGenres(currentMovie.genres)}</p>
+          <p><strong>Duration:</strong> {currentMovie.runtime || '2h 40m'}</p>
+
+          <div className="card-actions justify-center space-x-4">
+            <button onClick={() => handleWatchTrailer(currentMovie.title)} className="btn btn-primary">
+              Watch Trailer
+            </button>
+            <button onClick={handleSkip} className="btn btn-secondary">
+              Next Movie
+            </button>
           </div>
         </div>
       </div>
-    )
+    </div>
   );
 }
 

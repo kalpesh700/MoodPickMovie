@@ -29,50 +29,98 @@ const moodToCategory = {
   horny: "10749"           // Romance
 };
 
-// Reusable function to fetch movies based on mood and language
-const fetchMoviesByMood = async (mood, languageCode) => {
+// Fetch genres
+const fetchGenres = async () => {
+  try {
+    const url = `https://api.themoviedb.org/3/genre/movie/list?api_key=${process.env.API_KEY}&language=en`;
+    const response = await axios.get(url);
+    return response.data.genres;  // Returns all available genres with their ids and names
+  } catch (error) {
+    console.error("Error fetching genres:", error.message);
+    return [];  // Return empty array if there's an error
+  }
+};
+
+// Fetch movies by mood with specified language (iso_639_1 code) and Bearer token
+const fetchMoviesByMood = async (mood, languageCode = 'en') => {
   const categoryId = moodToCategory[mood];
   if (!categoryId) {
     throw new Error("Invalid mood category");
   }
 
-  const response = await axios.get(`https://api.themoviedb.org/3/discover/movie`, {
-    params: {
-      api_key: process.env.API_KEY,
-      with_genres: categoryId,
-      language: languageCode
+  try {
+    const isRegionalLanguage = ["hi", "kn", "ml", "ta", "te"].includes(languageCode);
+    const url = isRegionalLanguage
+      ? `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.API_KEY}&with_genres=${categoryId}&with_original_language=${languageCode}`
+      : `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.API_KEY}&with_genres=${categoryId}&language=${languageCode}`;
+    
+    const options = {
+      method: 'GET',
+      url: url,
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${process.env.TMDB_BEARER_TOKEN}` // Bearer token from environment
+      }
+    };
+
+    const response = await axios.request(options);
+    const movies = response.data.results;
+    const genres = await fetchGenres(); // Fetch genres
+
+    // Add genre names to each movie
+    const moviesWithGenres = movies.map((movie) => {
+      const movieGenres = movie.genre_ids.map((id) => {
+        const genre = genres.find((g) => g.id === id);
+        return genre ? genre.name : "Unknown"; // Return genre name or "Unknown" if not found
+      });
+      return {
+        ...movie,
+        genres: movieGenres // Attach genre names to movie data
+      };
+    });
+
+    if (moviesWithGenres.length === 0) {
+      throw new Error(`No ${languageCode} movies found for this mood`);
     }
-  });
 
-  // Filter movies if Hindi and ensure language consistency
-  const movies = response.data.results
-    .filter(movie => languageCode !== "hi" || movie.original_language === "hi")
-    .map(movie => ({
-      title: movie.title,
-      overview: movie.overview,
-      release_date: movie.release_date,
-      poster_path: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-      vote_average: movie.vote_average,
-      id: movie.id
-    }));
-
-  if (movies.length === 0) {
-    throw new Error("No movies found for this mood and language");
+    return moviesWithGenres;  // Return movies with genre names
+  } catch (error) {
+    throw new Error("Error fetching movies: " + error.message);
   }
-  return movies;
 };
 
-// Route for English Movies by Mood
-app.get("/movies/:mood", async (req, res) => {
-  const mood = req.params.mood.toLowerCase();
+// Fetch movie by ID with genre
+const fetchMovieById = async (movieId) => {
   try {
-    const movies = await fetchMoviesByMood(mood, "en-US");
-    res.json(movies);
+    const url = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.API_KEY}&append_to_response=credits`;
+    const response = await axios.get(url);
+    
+    const movie = response.data;
+    const genres = movie.genres.map(genre => genre.name);  // Extract genre names from movie data
+
+    return {
+      ...movie,
+      genres: genres // Add genres to movie data
+    };
+    console.log(genres)
+  } catch (error) {
+    throw new Error("Error fetching movie details: " + error.message);
+  }
+};
+
+// Route for Movies by Mood (with language parameter)
+app.get("/movies/:mood/:language?", async (req, res) => {
+  const mood = req.params.mood.toLowerCase();  // Get mood from URL and convert to lowercase
+  const language = req.params.language || 'en'; // Default to 'en' (English) if no language is specified
+
+  try {
+    const movies = await fetchMoviesByMood(mood, language);  // Fetch movies based on mood and language
+    res.json(movies);  // Send the filtered movies with genres as JSON
   } catch (error) {
     if (error.message === "Invalid mood category") {
-      res.status(400).json({ error: error.message });
-    } else if (error.message === "No movies found for this mood and language") {
-      res.status(404).json({ message: error.message });
+      res.status(400).json({ error: error.message }); // Bad Request for invalid mood
+    } else if (error.message === `No ${language} movies found for this mood`) {
+      res.status(404).json({ message: error.message }); // Not Found for no movies
     } else {
       console.error("Error fetching movies:", error.message);
       res.status(500).json({ error: "An error occurred while fetching movies" });
@@ -80,11 +128,20 @@ app.get("/movies/:mood", async (req, res) => {
   }
 });
 
-// Route for Hindi Movies by Mood
-app.get("/hindi", async (req, res) => {
-  res.send("COMING SOOOOOOOOOOOOOOOOOOON !!!!!!!!!")
+// Route for fetching a specific movie's details by ID, including genres
+app.get("/movie/:id", async (req, res) => {
+  const movieId = req.params.id;
+
+  try {
+    const movie = await fetchMovieById(movieId);  // Fetch movie by ID with genre information
+    res.json(movie);  // Send movie details with genres as JSON
+  } catch (error) {
+    console.error("Error fetching movie details:", error.message);
+    res.status(500).json({ error: "An error occurred while fetching movie details" });
+  }
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
